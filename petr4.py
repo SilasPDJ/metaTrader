@@ -1,5 +1,6 @@
 import MetaTrader5 as mt5
-from utils import main_order_sender
+import pandas as pd
+from utils import TradingUtils
 
 # display data on the MetaTrader 5 package
 print("MetaTrader5 package author: ", mt5.__author__)
@@ -12,7 +13,18 @@ if not mt5.initialize():
 
 # comprinha_de_petro =  main_order_sender(symbol='PETR4', _order_type=0, _lot=1, sl=10, tp=10)
 # indice =  main_order_sender(symbol='WINQ23', _order_type=0, _lot=1, sl=100, tp=100)
-indice = main_order_sender(symbol='WDOQ23', _order_type=0, _lot=1, sl=8, tp=8)
+
+trading_obj = TradingUtils('WDOQ23')
+
+while True:
+    trading_obj.trade_is_allowed_version1(mt5.TIMEFRAME_M1)
+
+
+    # trade = trading_obj.main_order_sender(_order_type=0, _lot=1, sl=8, tp=8)
+    pass
+
+
+# while True
 
 # shut down connection to the MetaTrader 5 terminal
 mt5.shutdown()
