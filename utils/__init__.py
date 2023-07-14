@@ -2,12 +2,22 @@ import time
 import pandas as pd
 import MetaTrader5 as mt5
 from datetime import datetime
+import datetime as dt
 from typing import Union
 
 
 class TradingUtils:
     def __init__(self, symbol: str):
         self.symbol = symbol
+
+    def get_rates_previous_day(self, timeframe):
+        yesterday = datetime.today() + dt.timedelta(-1)
+        rates = mt5.copy_rates_from(self.symbol, timeframe, yesterday, 120)
+        df = pd.DataFrame(rates)
+        df['time'] = df['time'].apply(datetime.fromtimestamp)
+        df = df.loc[df['time'].dt.date == yesterday.date()]
+        df.set_index('time', inplace=True)
+        return df
 
     @property
     def symbol(self):
