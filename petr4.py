@@ -1,5 +1,5 @@
 import MetaTrader5 as mt5
-from utils import has_order_failed, main_order_sender
+from utils import main_order_sender
 
 
 # display data on the MetaTrader 5 package
@@ -12,15 +12,10 @@ if not mt5.initialize():
     quit()
 
 
-comprinha_de_petro = result = main_order_sender(symbol='PETR4', _order_type=0, _lot=1, sl=10, tp=10)
+comprinha_de_petro =  main_order_sender(symbol='PETR4', _order_type=0, _lot=1, sl=10, tp=10)
+# indice =  main_order_sender(symbol='WINQ23', _order_type=0, _lot=1, sl=100, tp=100)
+indice =  main_order_sender(symbol='WDOQ23', _order_type=0, _lot=1, sl=50, tp=50)
 
-# If order has failed
-
-if has_order_failed(result):
-    mt5.shutdown()
-    quit()
-
-print("2. order_send done, ", result)
 
 # shut down connection to the MetaTrader 5 terminal
 mt5.shutdown()

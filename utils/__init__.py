@@ -2,7 +2,7 @@ import MetaTrader5 as mt5
 from typing import Union
 
 
-def has_order_failed(result: mt5.OrderSendResult) -> bool:
+def _has_order_failed(result: mt5.OrderSendResult) -> bool:
     if result.retcode != mt5.TRADE_RETCODE_DONE:
         print("2. order_send failed, retcode={}".format(result.retcode))
         # request the result as a dictionary and display it element by element
@@ -24,25 +24,25 @@ def main_order_sender(symbol: str, _order_type: int,_lot: int, sl: int, tp: int,
     :param symbol:
     :param _order_type:
     :param _lot: amount ot lots
-    :param sl: stop loss
-    :param tp: top gain
+    :param sl: stop loss in cents or points
+    :param tp: take profit in cents or points
 
     :param deviation: Default: 20
     :return:
     """
     # pegando a ordem pelo tipo dela
     order_types_dict = {
-        0: mt5.ORDER_TYPE_BUY,
-        1: mt5.ORDER_TYPE_SELL,
-        2: mt5.ORDER_TYPE_BUY_LIMIT,
-        3: mt5.ORDER_TYPE_SELL_LIMIT,
-        4: mt5.ORDER_TYPE_BUY_STOP,
-        5: mt5.ORDER_TYPE_SELL_STOP,
-        6: mt5.ORDER_TYPE_BUY_STOP_LIMIT,
-        7: mt5.ORDER_TYPE_SELL_STOP_LIMIT,
-        8: mt5.ORDER_TYPE_CLOSE_BY
+        0: "mt5.ORDER_TYPE_BUY",
+        1: "mt5.ORDER_TYPE_SELL",
+        2: "mt5.ORDER_TYPE_BUY_LIMIT",
+        3: "mt5.ORDER_TYPE_SELL_LIMIT",
+        4: "mt5.ORDER_TYPE_BUY_STOP",
+        5: "mt5.ORDER_TYPE_SELL_STOP",
+        6: "mt5.ORDER_TYPE_BUY_STOP_LIMIT",
+        7: "mt5.ORDER_TYPE_SELL_STOP_LIMIT",
+        8: "mt5.ORDER_TYPE_CLOSE_BY"
     }
-    assert 0 < _order_type < 8, "Invalid `_order_type: int` value"
+    assert 0 <= _order_type <= 8, "Invalid `_order_type: int` value"
 
     # prepare the sell/buy request structure
     symbol_info = mt5.symbol_info(symbol)
@@ -60,19 +60,21 @@ def main_order_sender(symbol: str, _order_type: int,_lot: int, sl: int, tp: int,
             quit()
 
     # Declarando variaveis principais
-    order_type = order_types_dict[_order_type]
+    order_type_str = order_types_dict[_order_type]
     lot = symbol_info.volume_min * _lot
-    point = mt5.symbol_info(symbol).point
+    trade_tick_size = mt5.symbol_info(symbol).trade_tick_size
     price = mt5.symbol_info_tick(symbol).ask
+    stop_loss_formula = price - sl * trade_tick_size
+    take_profit_formula = price + tp * trade_tick_size
 
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
         "symbol": symbol,
         "volume": lot,
-        "type": order_type,
+        "type": _order_type,
         "price": price,
-        "sl": price - sl * point,
-        "tp": price + tp * point,
+        "sl": stop_loss_formula,
+        "tp": take_profit_formula,
         "deviation": deviation,
         "magic": 234000,
         "comment": "python script open",
@@ -82,5 +84,17 @@ def main_order_sender(symbol: str, _order_type: int,_lot: int, sl: int, tp: int,
 
     # send a trading request
     result = mt5.order_send(request)
+
     # check the execution result
+    if _has_order_failed(result):
+        # mt5.shutdown()
+        # quit()
+        pass
+    print('Sucess!')
+    print(f'symbol: {symbol}')
+    print(f'order type: {order_type_str}\n'
+          f'take profit: {tp}\n'
+          f'stop loss: {sl}\n'
+          f'')
+
     return result
