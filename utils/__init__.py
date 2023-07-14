@@ -64,8 +64,16 @@ def main_order_sender(symbol: str, _order_type: int,_lot: int, sl: int, tp: int,
     lot = symbol_info.volume_min * _lot
     trade_tick_size = mt5.symbol_info(symbol).trade_tick_size
     price = mt5.symbol_info_tick(symbol).ask
-    stop_loss_formula = price - sl * trade_tick_size
-    take_profit_formula = price + tp * trade_tick_size
+
+    if trade_tick_size == 0.01 or trade_tick_size == 0.5:
+        stop_loss_formula = price - sl * trade_tick_size
+        take_profit_formula = price + tp * trade_tick_size
+    elif trade_tick_size == 5:
+        take_profit_formula = price + tp
+        stop_loss_formula = price - sl
+    else:
+        print(f'trade tick_size = {trade_tick_size}')
+        raise ValueError('Ativo não identificado ainda')
 
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
@@ -90,7 +98,7 @@ def main_order_sender(symbol: str, _order_type: int,_lot: int, sl: int, tp: int,
         # mt5.shutdown()
         # quit()
         pass
-    print('Sucess!')
+
     print(f'symbol: {symbol}')
     print(f'order type: {order_type_str}\n'
           f'take profit: {tp}\n'
