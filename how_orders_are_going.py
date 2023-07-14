@@ -25,3 +25,5 @@ if not symbol_info.visible:
         print("symbol_select({}}) failed, exit", symbol)
         mt5.shutdown()
         quit()
+
+symbol_info
