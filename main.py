@@ -1,14 +1,21 @@
+import time
+
 import pandas as pd
 import MetaTrader5 as mt5
 from datetime import datetime
-dia = datetime(2023, 7, 12)
+if not mt5.initialize():
+    print('Not possible')
+dia = datetime.today()
+dias = 100
+while True:
+    data = time.time()
+    # x = mt5.copy_rates_from('WIN$N', mt5.TIMEFRAME_M1, data, dias)
+    x = mt5.copy_rates_from('WDO$', mt5.TIMEFRAME_M1, data, dias)
+    x = pd.DataFrame(x)
+    x['time'] = pd.to_datetime(x['time'], unit='s')
+    p = x['close'].iloc[-1]
+    print(p)
+    time.sleep(2)
 
-
-mt5.initialize()
-mt5.initialize()
-d = mt5.terminal_info()
-d.community_connection
-
-dados = mt5.copy_ticks_from('PETR4', dia, 10, mt5.COPY_TICKS_ALL)
-df = pd.DataFrame(dados)
-print(s)
+if __name__ == '__main__':
+    pass
