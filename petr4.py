@@ -1,6 +1,7 @@
 import MetaTrader5 as mt5
 import pandas as pd
 from utils import TradingUtils
+import time
 
 # display data on the MetaTrader 5 package
 print("MetaTrader5 package author: ", mt5.__author__)
@@ -17,12 +18,13 @@ if not mt5.initialize():
 trading_obj = TradingUtils('WDOQ23')
 
 while True:
-    trading_obj.trade_is_allowed_version1(mt5.TIMEFRAME_M1)
+    positions_symbols = [pos.symbol for pos in mt5.positions_get()]
 
+    if not trading_obj.symbol in positions_symbols:
+        trading_obj.dolar_version_compra_e_vende(mt5.TIMEFRAME_M5)
 
     # trade = trading_obj.main_order_sender(_order_type=0, _lot=1, sl=8, tp=8)
-    pass
-
+    time.sleep(1)
 
 # while True
 
