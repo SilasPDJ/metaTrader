@@ -56,34 +56,38 @@ def get_ticks_in_candle_price(_tick: pd.DataFrame) -> pd.DataFrame:
 ORDENS_WDO = {
     'compras': {
         'entradas': {
-            'horario': [],
+            'horas': [],
             'price': [],
             'stop_loss': [],
             'top_gain': [],
         },
         'saidas': {
-            'horario': [],
+            'horas': [],
             'price': [],
-            'resultado': [],
+            'resultado_pontos': [],
         }
     },
     'vendas': {
         'entradas': {
-            'horario': [],
+            'horas': [],
             'price': [],
             'stop_loss': [],
             'top_gain': [],
         },
         'saidas': {
-            'horario': [],
+            'horas': [],
             'price': [],
-            'resultado': [],
+            'resultado_pontos': [],
         }
     }
 }
+compras_entradas = ORDENS_WDO['compras']['entradas']
+compras_saidas = ORDENS_WDO['compras']['saidas']
+
+vendas_entradas = ORDENS_WDO['vendas']['entradas']
+vendas_saidas = ORDENS_WDO['vendas']['saidas']
 
 for e, (tempo, candle) in enumerate(rates_5minutes.iterrows()):
-    print(e)
     # só vou checar os ticks se satisfazer minha condição...
     abertura, high, low, close, tick_volume, spread, real_volume = candle
 
@@ -97,6 +101,7 @@ for e, (tempo, candle) in enumerate(rates_5minutes.iterrows()):
         # É venda
         if abertura - close >= diferenca_abertura_fechamento:
             # self.main_order_sender(_order_type=1, _lot=1, sl=8, tp=8)
+
             e_venda = True
 
     # entao se for uma compra ou uma venda, eu vou pegar o exato momento em que deu a compra
@@ -106,21 +111,48 @@ for e, (tempo, candle) in enumerate(rates_5minutes.iterrows()):
 
         ticks = get_ticks_in_candle_price(out_ticks.loc[_menor_tempo & _maior_tempo])
 
-        # pegando o exato momento em que o tick bate o alvo
+        # é compra somente
         if e_compra:
             for cont, tick in ticks.iterrows():
-                if tick.bid - abertura == diferenca_abertura_fechamento:
-                    print(cont)
+                if tick.bid - abertura == diferenca_abertura_fechamento and len(compras_entradas['price']) == len(compras_saidas['price']):
                     # minha compra vai ser o tick.ask, pq é e_compra, mas é só um simulador
 
-                    ORDENS_WDO['compras']['entradas']['price'].append(tick.ask)
-                    ORDENS_WDO['compras']['entradas']['stop_loss'].append(tick.ask - 4.5)
-                    ORDENS_WDO['compras']['entradas']['top_gain'].append(tick.ask + 4)
+                    compras_entradas['price'].append(tick.ask)
+                    compras_entradas['horas'].append(tick.time)
+                    compras_entradas['stop_loss'].append(tick.ask - 4.5)
+                    compras_entradas['top_gain'].append(tick.ask + 4)
 
-            # TODO descobrir se o tick vai bater primeiro o stop_loss (sl) ou top_gain (tp)
+                    df_compras_entradas = pd.DataFrame(compras_entradas)
+                    # entrando
+                    print('Entrada')
+
+                # indo somente uma posição por vez, price é uma key aleatória
+                if len(compras_entradas['price']) > len(compras_saidas['price']):
+                    # Sinal que está posicionado
+                    # qual tick vai bater primeiro, do stop ou do gain?
+
+                    # pegando sempre a última entrada
+                    stopou = tick.ask == compras_entradas['stop_loss'][-1]
+                    lucrou = tick.ask == compras_entradas['top_gain'][-1]
+
+                    if stopou or lucrou and  len(compras_entradas) > len(compras_saidas):
+                        # certifica que tenha uma entrada a mais antes de appendar...
+
+                        compras_saidas['price'].append(tick.ask)
+                        compras_saidas['horas'].append(tick.time)
+                        same_entrada_indx = len(compras_saidas['price']) - 1
+
+                        compras_saidas['resultado_pontos'].append((tick.ask - compras_entradas['price'][same_entrada_indx]))
+                        print(compras_saidas)
+                        print()
+                    if stopou:
+                        print('Bateu o loss primeiro')
+                    if lucrou:
+                        print('LUCROOOO !!!! ')
+
 
         print(candle, ticks)
-
+df_compras_final = pd.DataFrame(ORDENS_WDO['compras'])
 print()
 
 # maiorq7_vendas[['open', 'high', 'low', 'close']].iplot(kind='candle')
