@@ -1,5 +1,6 @@
 import MetaTrader5 as mt5
 import pandas as pd
+import datetime as dt
 from utils import TradingUtils
 import time
 import cufflinks as cf
@@ -24,8 +25,14 @@ if not mt5.initialize():
 trading_obj = TradingUtils('WDOQ23')
 
 rates_5minutes = trading_obj.get_rates_previous_day(mt5.TIMEFRAME_M5)
+rates_1minute = trading_obj.get_rates_previous_day(mt5.TIMEFRAME_M1)
+
+
+ticks = trading_obj.get_ticks_previous_day()
+
 df = rates_5minutes
 # Ok, eu ja tenho os rates, agora é só eu verificaar se vai satisfazer minha condição
+# TODO stop tem que ser na minima do candle de entrada
 
 compra = df['open'] < df['close']
 venda = df['open'] > df['close']
@@ -36,8 +43,19 @@ df_venda = df[venda]
 maiorq7_compras = df_compra.loc[df_compra['close'] - df_compra['open'] >= 7]
 maiorq7_vendas = df_venda.loc[df_venda['open'] - df_venda['close'] >= 7]
 
+
+cont5min = 0
+for candle in rates_5minutes.itertuples():
+    print(candle)
+    print()
+
+
+
+
+
 # maiorq7_vendas[['open', 'high', 'low', 'close']].iplot(kind='candle')
 # maiorq7_compras[['open', 'high', 'low', 'close']].iplot(kind='candle')
+
 
 
 
