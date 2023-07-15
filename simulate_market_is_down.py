@@ -4,6 +4,7 @@ import datetime as dt
 from utils import TradingUtils
 import time
 import cufflinks as cf
+
 cf.set_config_file(offline=True)
 # pip install jupyter
 # jupyter notebook
@@ -27,7 +28,6 @@ trading_obj = TradingUtils('WDOQ23')
 rates_5minutes = trading_obj.get_rates_previous_day(mt5.TIMEFRAME_M5)
 rates_1minute = trading_obj.get_rates_previous_day(mt5.TIMEFRAME_M1)
 
-
 out_ticks = trading_obj.get_ticks_previous_day()
 
 df = rates_5minutes
@@ -43,33 +43,74 @@ df_venda = df[venda]
 maiorq7_compras = df_compra.loc[df_compra['close'] - df_compra['open'] >= 7]
 maiorq7_vendas = df_venda.loc[df_venda['open'] - df_venda['close'] >= 7]
 
+diferenca_abertura_fechamento = 7
+
 
 def get_ticks_in_candle_price(_tick: pd.DataFrame) -> pd.DataFrame:
-    bid_in_price= (_tick['bid'] >= candle['low']) & (_tick['bid'] <= candle['high'])
+    bid_in_price = (_tick['bid'] >= candle['low']) & (_tick['bid'] <= candle['high'])
     ask_in_price = (_tick['ask'] >= candle['low']) & (_tick['ask'] <= candle['high'])
 
     return _tick.loc[bid_in_price & ask_in_price]
 
+
+ORDENS_WDO = {
+    'compras': {
+        'entradas': {
+            'horario': [],
+            'price': []
+        },
+        'saidas': {
+            'horario': [],
+            'price': []
+        }
+    },
+    'vendas': {
+        'entradas': {
+            'horario': [],
+            'price': []
+        },
+        'saidas': {
+            'horario': [],
+            'price': []
+        }
+    }
+}
+
 for e, (tempo, candle) in enumerate(rates_5minutes.iterrows()):
-    _menor_tempo =out_ticks['time'].dt.floor('Min') >= tempo.floor('Min')
-    _maior_tempo = out_ticks['time'].dt.floor('Min') < rates_5minutes.index[e+1].floor('Min')
+    print(e)
+    # só vou checar os ticks se satisfazer minha condição...
+    abertura, high, low, close, tick_volume, spread, real_volume = candle
 
-    ticks = get_ticks_in_candle_price(out_ticks.loc[_menor_tempo & _maior_tempo])
-    print(candle, ticks)
+    e_compra = e_venda = False
+    if close > abertura:
+        # É compra
+        if close - abertura >= diferenca_abertura_fechamento:
+            # self.main_order_sender(_order_type=0, _lot=1, sl=8, tp=8)
+            e_compra = True
+    elif close < abertura:
+        # É venda
+        if abertura - close >= diferenca_abertura_fechamento:
+            # self.main_order_sender(_order_type=1, _lot=1, sl=8, tp=8)
+            e_venda = True
 
+    # entao se for uma compra ou uma venda, eu vou pegar o exato momento em que deu a compra
+    if e_compra or e_venda:
+        _menor_tempo = out_ticks['time'].dt.floor('Min') >= tempo.floor('Min')
+        _maior_tempo = out_ticks['time'].dt.floor('Min') < rates_5minutes.index[e + 1].floor('Min')
 
+        ticks = get_ticks_in_candle_price(out_ticks.loc[_menor_tempo & _maior_tempo])
 
-    print(candle)
-    print()
+        # pegando o exato momento em que o tick bate o alvo
+        if e_compra:
+            for tick in ticks.itertuples():
+                if close - tick.bid == diferenca_abertura_fechamento:
+                    ORDENS_WDO
+        print(candle, ticks)
 
-
-
-
+print()
 
 # maiorq7_vendas[['open', 'high', 'low', 'close']].iplot(kind='candle')
 # maiorq7_compras[['open', 'high', 'low', 'close']].iplot(kind='candle')
-
-
 
 
 while True:
@@ -82,6 +123,7 @@ while True:
     time.sleep(1)
 
 # while True
+maiorq7_compras[['open', 'high', 'low', 'close']].iplot(kind='candle')
 
 # shut down connection to the MetaTrader 5 terminal
 mt5.shutdown()
