@@ -28,7 +28,7 @@ rates_5minutes = trading_obj.get_rates_previous_day(mt5.TIMEFRAME_M5)
 rates_1minute = trading_obj.get_rates_previous_day(mt5.TIMEFRAME_M1)
 
 
-ticks = trading_obj.get_ticks_previous_day()
+out_ticks = trading_obj.get_ticks_previous_day()
 
 df = rates_5minutes
 # Ok, eu ja tenho os rates, agora é só eu verificaar se vai satisfazer minha condição
@@ -44,8 +44,21 @@ maiorq7_compras = df_compra.loc[df_compra['close'] - df_compra['open'] >= 7]
 maiorq7_vendas = df_venda.loc[df_venda['open'] - df_venda['close'] >= 7]
 
 
-cont5min = 0
-for candle in rates_5minutes.itertuples():
+def get_ticks_in_candle_price(_tick: pd.DataFrame) -> pd.DataFrame:
+    bid_in_price= (_tick['bid'] >= candle['low']) & (_tick['bid'] <= candle['high'])
+    ask_in_price = (_tick['ask'] >= candle['low']) & (_tick['ask'] <= candle['high'])
+
+    return _tick.loc[bid_in_price & ask_in_price]
+
+for e, (tempo, candle) in enumerate(rates_5minutes.iterrows()):
+    _menor_tempo =out_ticks['time'].dt.floor('Min') >= tempo.floor('Min')
+    _maior_tempo = out_ticks['time'].dt.floor('Min') < rates_5minutes.index[e+1].floor('Min')
+
+    ticks = get_ticks_in_candle_price(out_ticks.loc[_menor_tempo & _maior_tempo])
+    print(candle, ticks)
+
+
+
     print(candle)
     print()
 
