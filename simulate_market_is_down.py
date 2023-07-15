@@ -45,8 +45,6 @@ maiorq7_vendas = df_venda.loc[df_venda['open'] - df_venda['close'] >= 7]
 
 diferenca_abertura_fechamento = 7
 
-
-
 ORDENS_WDO = {
     'compras': {
         'entradas': {
@@ -100,48 +98,61 @@ for e, (tempo, candle) in enumerate(rates_5minutes.iterrows()):
 
     # entao se for uma compra ou uma venda, eu vou pegar o exato momento em que deu a compra
     if e_compra or e_venda:
+        # preparando a entrada
         _menor_tempo = out_ticks['time'].dt.floor('Min') >= tempo.floor('Min')
         _maior_tempo = out_ticks['time'].dt.floor('Min') < rates_5minutes.index[e + 1].floor('Min')
 
         ticks = out_ticks.loc[_menor_tempo & _maior_tempo]
-
         # é compra somente
+
+        # TODO enquanto estiver posicionado, loopa entre os ticks, retorna o prox tempo e adiciona o trade e continua a partir do tempo que o trade acabou
+        esta_comprado = False
+        esta_vendido = False
+
         if e_compra:
-            for cont, tick in ticks.iterrows():
-                if tick.bid - abertura >= diferenca_abertura_fechamento and len(compras_entradas['price']) == len(compras_saidas['price']):
+            for cont, enter_tick in ticks.iterrows():
+                if enter_tick.bid - abertura >= diferenca_abertura_fechamento and len(compras_entradas['price']) == len(
+                        compras_saidas['price']):
                     # minha compra vai ser o tick.ask, pq é e_compra, mas é só um simulador
 
-                    compras_entradas['price'].append(tick.ask)
-                    compras_entradas['horas'].append(tick.time)
-                    compras_entradas['stop_loss'].append(tick.ask - 4.5)
-                    compras_entradas['top_gain'].append(tick.ask + 4)
+                    compras_entradas['price'].append(enter_tick.ask)
+                    compras_entradas['horas'].append(enter_tick.time)
+                    compras_entradas['stop_loss'].append(enter_tick.ask - 4.5)
+                    compras_entradas['top_gain'].append(enter_tick.ask + 4)
                     # entrando
                     print('Entrada')
+                    esta_comprado = True
 
-                print(tick)
-                # indo somente uma posição por vez, price é uma key aleatória
-                if len(compras_entradas['price']) > len(compras_saidas['price']):
-                    # Sinal que está posicionado
-                    # qual tick vai bater primeiro, do stop ou do gain?
+                # achou a compra breaka, refatorar
+                if esta_comprado:
+                    for inner_cont, exit_tick in list(out_ticks.iterrows())[cont:]:
+                        # print(exit_tick)
+                        # indo somente uma posição por vez, price é uma key aleatória
+                        # Sinal que está posicionado
+                        # qual tick vai bater primeiro, do stop ou do gain?
 
-                    # pegando sempre a última entrada
-                    stopou = tick.ask <= compras_entradas['stop_loss'][-1]
-                    lucrou = tick.ask >= compras_entradas['top_gain'][-1]
+                        # pegando sempre a última entrada
+                        stopou = exit_tick.bid <= compras_entradas['stop_loss'][-1]
+                        lucrou = exit_tick.ask >= compras_entradas['top_gain'][-1]
+                        # print('exit_tick.ask: ', exit_tick.ask, 'top_gain:', compras_entradas['top_gain'][-1], f'entrada: {compras_entradas["price"][-1]}')
 
-                    if stopou or lucrou:
-                        # certifica que tenha uma entrada a mais antes de appendar...
+                        if stopou:
+                            print('Bateu o loss primeiro')
+                        if lucrou:
+                            print('LUCROOOO !!!! ')
+                        if stopou or lucrou:
+                            print(f'\033[1;32mEntrou em {compras_entradas["price"][-1]}, Saiu em {exit_tick.bid}. COMPRA\033[1;32m')
+                            # certifica que tenha uma entrada a mais antes de appendar...
 
-                        compras_saidas['price'].append(tick.ask)
-                        compras_saidas['horas'].append(tick.time)
-                        same_entrada_indx = len(compras_saidas['price']) - 1
+                            compras_saidas['price'].append(exit_tick.ask)
+                            compras_saidas['horas'].append(exit_tick.time)
+                            same_entrada_indx = len(compras_saidas['price']) - 1
 
-                        compras_saidas['resultado_pontos'].append((tick.ask - compras_entradas['price'][same_entrada_indx]))
-                        print()
-                    if stopou:
-                        print('Bateu o loss primeiro')
-                    if lucrou:
-                        print('LUCROOOO !!!! ')
-
+                            compras_saidas['resultado_pontos'].append(
+                                (exit_tick.ask - compras_entradas['price'][same_entrada_indx]))
+                            print()
+                            break
+                        break
 
 df_compras_final = pd.DataFrame(ORDENS_WDO['compras'])
 # df_compras_final['Lucro'] = compras_saidas['resultado_pontos'] * 10
