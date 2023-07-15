@@ -105,7 +105,6 @@ for e, (tempo, candle) in enumerate(rates_5minutes.iterrows()):
         ticks = out_ticks.loc[_menor_tempo & _maior_tempo]
         # é compra somente
 
-        # TODO enquanto estiver posicionado, loopa entre os ticks, retorna o prox tempo e adiciona o trade e continua a partir do tempo que o trade acabou
         esta_comprado = False
         esta_vendido = False
 
