@@ -57,21 +57,27 @@ ORDENS_WDO = {
     'compras': {
         'entradas': {
             'horario': [],
-            'price': []
+            'price': [],
+            'stop_loss': [],
+            'top_gain': [],
         },
         'saidas': {
             'horario': [],
-            'price': []
+            'price': [],
+            'resultado': [],
         }
     },
     'vendas': {
         'entradas': {
             'horario': [],
-            'price': []
+            'price': [],
+            'stop_loss': [],
+            'top_gain': [],
         },
         'saidas': {
             'horario': [],
-            'price': []
+            'price': [],
+            'resultado': [],
         }
     }
 }
@@ -102,9 +108,17 @@ for e, (tempo, candle) in enumerate(rates_5minutes.iterrows()):
 
         # pegando o exato momento em que o tick bate o alvo
         if e_compra:
-            for tick in ticks.itertuples():
-                if close - tick.bid == diferenca_abertura_fechamento:
-                    ORDENS_WDO
+            for cont, tick in ticks.iterrows():
+                if tick.bid - abertura == diferenca_abertura_fechamento:
+                    print(cont)
+                    # minha compra vai ser o tick.ask, pq é e_compra, mas é só um simulador
+
+                    ORDENS_WDO['compras']['entradas']['price'].append(tick.ask)
+                    ORDENS_WDO['compras']['entradas']['stop_loss'].append(tick.ask - 4.5)
+                    ORDENS_WDO['compras']['entradas']['top_gain'].append(tick.ask + 4)
+
+            # TODO descobrir se o tick vai bater primeiro o stop_loss (sl) ou top_gain (tp)
+
         print(candle, ticks)
 
 print()
