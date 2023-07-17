@@ -44,7 +44,8 @@ class TradingUtils:
     def symbol(self, symbol: str):
         self._symbol = symbol
 
-    def dolar_version_compra_e_vende(self, timeframe, diferenca_abertura_fechamento: int, count_df: int = 10) -> True:
+    def dolar_version_compra_e_vende(self, timeframe, diferenca_abertura_fechamento: float, count_df: int = 10) -> True:
+        assert diferenca_abertura_fechamento > 0.5
         symbol_info = mt5.symbol_info(self.symbol)
         symbol_info_tick = mt5.symbol_info_tick(self.symbol)
         rates = mt5.copy_rates_from(self.symbol, timeframe, time.time(), count_df)
@@ -63,18 +64,18 @@ class TradingUtils:
         if close > abertura:
             # É compra
             if close - abertura >= diferenca_abertura_fechamento:
-                self.main_order_sender(_order_type=0, _lot=1, sl=diferenca_abertura_fechamento, tp=diferenca_abertura_fechamento)
+                self.main_order_sender(_order_type=0, _lot=1, sl=diferenca_abertura_fechamento * 2, tp=diferenca_abertura_fechamento * 2)
                 return True
 
             return False
         elif close < abertura:
             # É venda
             if abertura - close >= diferenca_abertura_fechamento:
-                self.main_order_sender(_order_type=1, _lot=1, sl=diferenca_abertura_fechamento, tp=diferenca_abertura_fechamento)
+                self.main_order_sender(_order_type=1, _lot=1, sl=diferenca_abertura_fechamento * 2, tp=diferenca_abertura_fechamento * 2)
                 return True
             return False
 
-    def main_order_sender(self, _order_type: int, _lot: int, sl: int, tp: int, deviation=20) -> mt5.OrderSendResult:
+    def main_order_sender(self, _order_type: int, _lot: int, sl: float, tp: float, deviation=20) -> mt5.OrderSendResult:
         """
         :param _order_type:
         :param _lot: amount ot lots
