@@ -111,16 +111,19 @@ for e, (tempo, candle) in enumerate(rates_5minutes.iterrows()):
         if e_compra:
             for cont, enter_tick in ticks.iterrows():
                 if enter_tick.bid - abertura >= diferenca_abertura_fechamento and len(compras_entradas['price']) == len(
-                        compras_saidas['price']):
+                        compras_saidas['price'] ):
                     # minha compra vai ser o tick.ask, pq é e_compra, mas é só um simulador
-
-                    compras_entradas['price'].append(enter_tick.ask)
-                    compras_entradas['horas'].append(enter_tick.time)
-                    compras_entradas['stop_loss'].append(enter_tick.ask - 4.5)
-                    compras_entradas['top_gain'].append(enter_tick.ask + 4)
-                    # entrando
-                    print('Entrada')
-                    esta_comprado = True
+                    if len(compras_entradas['price']) > 0:
+                        if compras_entradas['price'][-1] == enter_tick.ask:
+                            continue
+                    if not esta_comprado:
+                        compras_entradas['price'].append(enter_tick.ask)
+                        compras_entradas['horas'].append(enter_tick.time)
+                        compras_entradas['stop_loss'].append(enter_tick.ask - 4.5)
+                        compras_entradas['top_gain'].append(enter_tick.ask + 4)
+                        # entrando
+                        print('Entrada')
+                        esta_comprado = True
 
                 # achou a compra breaka, refatorar
                 if esta_comprado:
@@ -140,18 +143,17 @@ for e, (tempo, candle) in enumerate(rates_5minutes.iterrows()):
                         if lucrou:
                             print('LUCROOOO !!!! ')
                         if stopou or lucrou:
-                            print(f'\033[1;32mEntrou em {compras_entradas["price"][-1]}, Saiu em {exit_tick.bid}. COMPRA\033[1;32m')
+                            print(f'\033[1;32mEntrou em {compras_entradas["price"][-1]}, Saiu em {exit_tick.bid}. COMPRA\033[;m')
                             # certifica que tenha uma entrada a mais antes de appendar...
 
                             compras_saidas['price'].append(exit_tick.ask)
                             compras_saidas['horas'].append(exit_tick.time)
-                            same_entrada_indx = len(compras_saidas['price']) - 1
+                            # same_entrada_indx = len(compras_saidas['price']) - 1
 
                             compras_saidas['resultado_pontos'].append(
-                                (exit_tick.ask - compras_entradas['price'][same_entrada_indx]))
+                                (exit_tick.ask - compras_entradas['price'][-1]))
                             print()
                             break
-                        break
 
 df_compras_final = pd.DataFrame(ORDENS_WDO['compras'])
 # df_compras_final['Lucro'] = compras_saidas['resultado_pontos'] * 10

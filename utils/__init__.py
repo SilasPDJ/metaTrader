@@ -9,7 +9,7 @@ from typing import Union
 class TradingUtils:
     def __init__(self, symbol: str):
         self.symbol = symbol
-        self.yesterday = datetime.today() + dt.timedelta(-2)
+        self.yesterday = datetime.today() + dt.timedelta(-5)
 
     def get_ticks_previous_day(self):
         date_from = pd.Timestamp(self.yesterday).replace(hour=0, minute=0, second=0)
