@@ -44,7 +44,8 @@ class TradingUtils:
     def symbol(self, symbol: str):
         self._symbol = symbol
 
-    def dolar_version_compra_e_vende(self, timeframe, diferenca_abertura_fechamento: float, count_df: int = 10) -> True:
+    def dolar_version_compra_e_vende(self, timeframe, diferenca_abertura_fechamento: float, count_df: int = 10) -> bool:
+        positions_symbols = [pos.symbol for pos in mt5.positions_get()]
         assert diferenca_abertura_fechamento > 0.5
         symbol_info = mt5.symbol_info(self.symbol)
         symbol_info_tick = mt5.symbol_info_tick(self.symbol)
@@ -55,30 +56,39 @@ class TradingUtils:
         df['time'] = df['time'].apply(datetime.fromtimestamp)
         # carteira_closes.set_index(timestamps, inplace=True)
 
-        ultimo_valor = symbol_info.last
+        # Se a ordem já estiver aberta, não executa
+        if self.symbol in positions_symbols:
+            print('Orderm já aberta')
+            return False
 
         tempo, abertura, high, low, close, tick_volume, spread,real_volume = df.iloc[-1]
         print(f'abertura: {abertura}\n'
               f'Fechamento: {close}\n'
               f'{abertura-close}')
+
+
         if close > abertura:
             # É compra
             if close - abertura >= diferenca_abertura_fechamento:
-                self.main_order_sender(_order_type=0, _lot=1, sl=diferenca_abertura_fechamento * 2, tp=diferenca_abertura_fechamento * 2)
+
+                price = (high + low)/2
+                self.main_order_sender(_order_type=0, _lot=1, price=price, sl=diferenca_abertura_fechamento, tp=diferenca_abertura_fechamento)
                 return True
 
             return False
         elif close < abertura:
             # É venda
             if abertura - close >= diferenca_abertura_fechamento:
-                self.main_order_sender(_order_type=1, _lot=1, sl=diferenca_abertura_fechamento * 2, tp=diferenca_abertura_fechamento * 2)
+                price = (high + low)/2
+                self.main_order_sender(_order_type=1, _lot=1, price=price, sl=diferenca_abertura_fechamento, tp=diferenca_abertura_fechamento)
                 return True
             return False
 
-    def main_order_sender(self, _order_type: int, _lot: int, sl: float, tp: float, deviation=20) -> mt5.OrderSendResult:
+    def main_order_sender(self, _order_type: int, _lot: int, price:float,sl: float, tp: float, deviation=20) -> mt5.OrderSendResult:
         """
         :param _order_type:
         :param _lot: amount ot lots
+        :param price:
         :param sl: stop loss in cents or points
         :param tp: take profit in cents or points
 
@@ -117,7 +127,8 @@ class TradingUtils:
         order_type_str = order_types_dict[_order_type]
         lot = symbol_info.volume_min * _lot
         trade_tick_size = mt5.symbol_info(self.symbol).trade_tick_size
-        price = mt5.symbol_info_tick(self.symbol).ask
+        # mt5.symbol_info_tick._as_dict().keys() = time, bid, ask, last, volume, time_msc, flags, volume_real
+
         if trade_tick_size == 0.01 or trade_tick_size == 0.5:
             # Ordem é do tipo buy
             if _order_type % 2 == 0:
@@ -155,6 +166,7 @@ class TradingUtils:
             "type_time": mt5.ORDER_TIME_GTC,
             "type_filling": mt5.ORDER_FILLING_RETURN,
         }
+        df_result = pd.DataFrame(data=request.values(), index=request.keys()).T
 
         # send a trading request
         result = mt5.order_send(request)
@@ -167,8 +179,8 @@ class TradingUtils:
 
         print(f'symbol: {self.symbol}')
         print(f'order type: {order_type_str}\n'
-              f'take profit: {take_profit_formula}, ({tp} pontos)\n'
-              f'stop loss: {stop_loss_formula}, ({sl} pontos)\n'
+              f'take profit: {take_profit_formula}, ({tp} ticks)\n'
+              f'stop loss: {stop_loss_formula}, ({sl} ticks)\n'
               f'')
 
         return result
