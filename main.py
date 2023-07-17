@@ -21,9 +21,8 @@ while True:
     positions_symbols = [pos.symbol for pos in mt5.positions_get()]
 
     if not trading_obj.symbol in positions_symbols:
-        trading_obj.dolar_version_compra_e_vende(mt5.TIMEFRAME_M5)
-
-    # trade = trading_obj.main_order_sender(_order_type=0, _lot=1, sl=8, tp=8)
+        trading_obj.dolar_version_compra_e_vende(mt5.TIMEFRAME_M5, diferenca_abertura_fechamento=4)
+        # trade = trading_obj.main_order_sender(_order_type=0, _lot=1, sl=8, tp=8)
     time.sleep(1)
 
 # while True

@@ -9,7 +9,7 @@ from typing import Union
 class TradingUtils:
     def __init__(self, symbol: str):
         self.symbol = symbol
-        self.yesterday = datetime.today() + dt.timedelta(-5)
+        self.yesterday = datetime.today() + dt.timedelta(-4)
 
     def get_ticks_previous_day(self):
         date_from = pd.Timestamp(self.yesterday).replace(hour=0, minute=0, second=0)
@@ -44,7 +44,7 @@ class TradingUtils:
     def symbol(self, symbol: str):
         self._symbol = symbol
 
-    def dolar_version_compra_e_vende(self, timeframe, diferenca_abertura_fechamento: int=7, count_df: int = 10) -> True:
+    def dolar_version_compra_e_vende(self, timeframe, diferenca_abertura_fechamento: int, count_df: int = 10) -> True:
         symbol_info = mt5.symbol_info(self.symbol)
         symbol_info_tick = mt5.symbol_info_tick(self.symbol)
         rates = mt5.copy_rates_from(self.symbol, timeframe, time.time(), count_df)
@@ -63,14 +63,14 @@ class TradingUtils:
         if close > abertura:
             # É compra
             if close - abertura >= diferenca_abertura_fechamento:
-                self.main_order_sender(_order_type=0, _lot=1, sl=8, tp=8)
+                self.main_order_sender(_order_type=0, _lot=1, sl=diferenca_abertura_fechamento, tp=diferenca_abertura_fechamento)
                 return True
 
             return False
         elif close < abertura:
             # É venda
             if abertura - close >= diferenca_abertura_fechamento:
-                self.main_order_sender(_order_type=1, _lot=1, sl=8, tp=8)
+                self.main_order_sender(_order_type=1, _lot=1, sl=diferenca_abertura_fechamento, tp=diferenca_abertura_fechamento)
                 return True
             return False
 
@@ -117,13 +117,25 @@ class TradingUtils:
         lot = symbol_info.volume_min * _lot
         trade_tick_size = mt5.symbol_info(self.symbol).trade_tick_size
         price = mt5.symbol_info_tick(self.symbol).ask
-
         if trade_tick_size == 0.01 or trade_tick_size == 0.5:
-            stop_loss_formula = price - sl * trade_tick_size
-            take_profit_formula = price + tp * trade_tick_size
+            # Ordem é do tipo buy
+            if _order_type % 2 == 0:
+                stop_loss_formula = price - sl * trade_tick_size
+                take_profit_formula = price + tp * trade_tick_size
+            else:
+                # ordem do tipo sell
+                stop_loss_formula = price + sl * trade_tick_size
+                take_profit_formula = price - tp * trade_tick_size
+
         elif trade_tick_size == 5:
-            take_profit_formula = price + tp
-            stop_loss_formula = price - sl
+            # Ordem é do tipo buy
+            if _order_type % 2 == 0:
+                take_profit_formula = price + tp
+                stop_loss_formula = price - sl
+            else:
+                # ordem do tipo sell
+                stop_loss_formula = price + sl
+                take_profit_formula = price - tp
         else:
             print(f'trade tick_size = {trade_tick_size}')
             raise ValueError('Ativo não identificado ainda')
@@ -154,8 +166,8 @@ class TradingUtils:
 
         print(f'symbol: {self.symbol}')
         print(f'order type: {order_type_str}\n'
-              f'take profit: {tp}\n'
-              f'stop loss: {sl}\n'
+              f'take profit: {take_profit_formula}, ({tp} pontos)\n'
+              f'stop loss: {stop_loss_formula}, ({sl} pontos)\n'
               f'')
 
         return result
