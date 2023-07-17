@@ -1,7 +1,7 @@
 import MetaTrader5 as mt5
 import pandas as pd
 import datetime as dt
-from utils import TradingUtils
+from utils import PreviousDay as TradingUtils
 import time
 import cufflinks as cf
 

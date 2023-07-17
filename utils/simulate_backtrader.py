@@ -1,6 +1,6 @@
 import backtrader as bt
 import pandas as pd
-from utils import TradingUtils
+from utils import PreviousDay as TradingUtils
 import MetaTrader5 as mt5
 
 
