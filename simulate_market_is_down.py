@@ -40,10 +40,10 @@ venda = df['open'] > df['close']
 df_compra = df[compra]
 df_venda = df[venda]
 
-maiorq7_compras = df_compra.loc[df_compra['close'] - df_compra['open'] >= 7]
-maiorq7_vendas = df_venda.loc[df_venda['open'] - df_venda['close'] >= 7]
+maiorq7_compras = df_compra.loc[df_compra['close'] - df_compra['open'] >= 4]
+maiorq7_vendas = df_venda.loc[df_venda['open'] - df_venda['close'] >= 4]
 
-diferenca_abertura_fechamento = 7
+diferenca_abertura_fechamento = 4
 
 ORDENS_WDO = {
     'compras': {
@@ -132,7 +132,7 @@ for e, (tempo, candle) in enumerate(rates_5minutes.iterrows()):
 
                 # achou a compra breaka, refatorar
                 if esta_comprado:
-                    for inner_cont, exit_tick in list(out_ticks.iterrows())[cont:]:
+                    for inner_cont, exit_tick in list(out_ticks.iterrows())[cont+1:]:
                         # print(exit_tick)
                         # indo somente uma posição por vez, price é uma key aleatória
                         # Sinal que está posicionado
@@ -168,18 +168,18 @@ print()
 # maiorq7_vendas[['open', 'high', 'low', 'close']].iplot(kind='candle')
 # maiorq7_compras[['open', 'high', 'low', 'close']].iplot(kind='candle')
 
-
-while True:
-    positions_symbols = [pos.symbol for pos in mt5.positions_get()]
-
-    if not trading_obj.symbol in positions_symbols:
-        trading_obj.dolar_version_compra_e_vende(mt5.TIMEFRAME_M5)
-
-    # trade = trading_obj.main_order_sender(_order_type=0, _lot=1, sl=8, tp=8)
-    time.sleep(1)
-
-# while True
-maiorq7_compras[['open', 'high', 'low', 'close']].iplot(kind='candle')
-
-# shut down connection to the MetaTrader 5 terminal
-mt5.shutdown()
+#
+# while True:
+#     positions_symbols = [pos.symbol for pos in mt5.positions_get()]
+#
+#     if not trading_obj.symbol in positions_symbols:
+#         trading_obj.dolar_version_compra_e_vende(mt5.TIMEFRAME_M5)
+#
+#     # trade = trading_obj.main_order_sender(_order_type=0, _lot=1, sl=8, tp=8)
+#     time.sleep(1)
+#
+# # while True
+# maiorq7_compras[['open', 'high', 'low', 'close']].iplot(kind='candle')
+#
+# # shut down connection to the MetaTrader 5 terminal
+# mt5.shutdown()
