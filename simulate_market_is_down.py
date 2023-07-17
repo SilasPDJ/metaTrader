@@ -107,9 +107,14 @@ for e, (tempo, candle) in enumerate(rates_5minutes.iterrows()):
 
         esta_comprado = False
         esta_vendido = False
-
+        inner_cont = 0
         if e_compra:
             for cont, enter_tick in ticks.iterrows():
+                if inner_cont != 0:
+                    esta_comprado = False
+                    # Essa lógica é para ele só entrar após ter finalizado o trade anterior
+                    if cont <= inner_cont:
+                        continue
                 if enter_tick.bid - abertura >= diferenca_abertura_fechamento and len(compras_entradas['price']) == len(
                         compras_saidas['price'] ):
                     # minha compra vai ser o tick.ask, pq é e_compra, mas é só um simulador
@@ -154,6 +159,7 @@ for e, (tempo, candle) in enumerate(rates_5minutes.iterrows()):
                                 (exit_tick.ask - compras_entradas['price'][-1]))
                             print()
                             break
+                    continue
 
 df_compras_final = pd.DataFrame(ORDENS_WDO['compras'])
 # df_compras_final['Lucro'] = compras_saidas['resultado_pontos'] * 10
