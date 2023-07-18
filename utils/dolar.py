@@ -159,36 +159,6 @@ class TradingDolar:
         return False
 
 
-class PreviousDay(TradingUtils):
-    def __init__(self, symbol: str):
-        super().__init__(symbol)
-
-    def get_ticks_previous_day(self):
-        date_from = pd.Timestamp(self.yesterday).replace(hour=0, minute=0, second=0)
-        date_to = pd.Timestamp(self.yesterday).replace(hour=23, minute=59, second=59)
-
-        ticks = mt5.copy_ticks_range(self.symbol, date_from, date_to, mt5.COPY_TICKS_INFO)
-
-        # Filtrar apenas as alterações do Ask e Bid
-        bid_flags = ticks['flags'] & mt5.TICK_FLAG_BID
-        ask_flags = ticks['flags'] & mt5.TICK_FLAG_ASK
-        # newticks = pd.DataFrame(ticks)
-        ask_bid_ticks = pd.DataFrame(ticks)[['time', 'bid', 'ask']].loc[(bid_flags != 0) | (ask_flags != 0)]
-        ask_bid_ticks['time'] = ask_bid_ticks['time'].apply(dt.datetime.fromtimestamp)
-
-        return ask_bid_ticks
-
-    def get_rates_previous_day(self, timeframe) -> pd.DataFrame:
-        # rates = mt5.copy_rates_from(self.symbol, timeframe, yesterday, 120)
-        rates = mt5.copy_rates_from(self.symbol, timeframe, self.yesterday + dt.timedelta(1), 600)
-        df = pd.DataFrame(rates)
-        df['time'] = df['time'].apply(datetime.fromtimestamp)
-        # pegar o dia máximo
-        df = df.loc[df['time'].dt.date == self.yesterday.date()]
-        df.set_index('time', inplace=True)
-        return df
-
-
 if __name__ == '__main__':
 
     # display data on the MetaTrader 5 package
