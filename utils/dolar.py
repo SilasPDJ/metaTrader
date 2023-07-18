@@ -7,9 +7,11 @@ from typing import Union
 
 
 class TradingDolar:
-    def __init__(self, symbol: str):
+    def __init__(self, symbol: str, may_print=False):
         self.symbol = symbol
         self.yesterday = datetime.today() + dt.timedelta(-4)
+        self.last_position_candle = None
+        self.may_print = may_print
 
     @property
     def symbol(self):
@@ -19,12 +21,10 @@ class TradingDolar:
     def symbol(self, symbol: str):
         self._symbol = symbol
 
-    def _has_position(self) -> bool:
+    def _has_position__old(self) -> bool:
         return self.symbol in [pos.symbol for pos in mt5.positions_get()]
 
     def main(self, timeframe, diferenca_abertura_fechamento: float, count_df: int = 10) -> bool:
-        if self._has_position():
-            return False
         symbol_info = mt5.symbol_info(self.symbol)
         symbol_info_tick = mt5.symbol_info_tick(self.symbol)
         rates = mt5.copy_rates_from(self.symbol, timeframe, time.time(), count_df)
@@ -35,9 +35,16 @@ class TradingDolar:
         # carteira_closes.set_index(timestamps, inplace=True)
 
         tempo, abertura, high, low, close, tick_volume, spread, real_volume = df.iloc[-1]
-        print(f'abertura: {abertura}\n'
-              f'Fechamento: {close}\n'
-              f'{abertura - close}')
+        current_candle_time = tempo
+        # Verificar se já estamos posicionados no mesmo candle
+        if self.last_position_candle and current_candle_time == self.last_position_candle:
+            return False
+
+        # printando para mostrar a diferença
+        if self.may_print:
+            print(f'abertura: {abertura}. '
+                  f'Fechamento: {close}\n'
+                  f'F - A := {abertura - close}. A - F := {close - abertura}')
 
         if close > abertura:
             # É compra
@@ -45,6 +52,8 @@ class TradingDolar:
                 price = self._get_price(high, low)
                 self._main_order_sender(_order_type=0, _lot=1, price=price, sl=price - diferenca_abertura_fechamento,
                                         tp=price + diferenca_abertura_fechamento)
+                self.last_position_candle = current_candle_time
+
                 return True
 
             return False
@@ -54,7 +63,10 @@ class TradingDolar:
                 price = self._get_price(high, low)
                 self._main_order_sender(_order_type=1, _lot=1, price=price, sl=price + diferenca_abertura_fechamento,
                                         tp=price - diferenca_abertura_fechamento)
+                self.last_position_candle = current_candle_time
+
                 return True
+
             return False
 
     def _get_price(self, high: float, low: float) -> float:
@@ -112,7 +124,7 @@ class TradingDolar:
         # mt5.symbol_info_tick._as_dict().keys() = time, bid, ask, last, volume, time_msc, flags, volume_real
 
         request = {
-            "action": mt5.TRADE_ACTION_DEAL,
+            "action": mt5.TRADE_ACTION_PENDING,
             "symbol": self.symbol,
             "volume": lot,
             "type": _order_type,
@@ -176,8 +188,11 @@ if __name__ == '__main__':
     # comprinha_de_petro =  main_order_sender(symbol='PETR4', _order_type=0, _lot=1, sl=10, tp=10)
     # indice =  main_order_sender(symbol='WINQ23', _order_type=0, _lot=1, sl=100, tp=100)
 
-    trading_obj = TradingDolar('WDOQ23')
+    trading_5_minutes_opportunities = TradingDolar('WDOQ23', may_print=True)
+    trading_15_minutes_opportunities = TradingDolar('WDOQ23')
     # trading_obj = TradingUtils('EURUSD')
 
     while True:
-        trading_obj.main(mt5.TIMEFRAME_M15, 2)
+        trading_15_minutes_opportunities.main(mt5.TIMEFRAME_M5, 6)
+        trading_5_minutes_opportunities.main(mt5.TIMEFRAME_M5, 4)
+        time.sleep(1)
