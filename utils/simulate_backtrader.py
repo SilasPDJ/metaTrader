@@ -2,6 +2,7 @@ import pandas as pd
 import backtrader as bt
 import matplotlib.pyplot as plt
 
+
 class MyStrategy(bt.Strategy):
     params = (
         ('quantidade_pontos', 2),  # Valor padrão para quantidade_pontos
@@ -22,7 +23,7 @@ class MyStrategy(bt.Strategy):
         # Verifica se a distância de abertura para fechamento é igual a quantidade_pontos para operações de compra
         distance_buy = self.dataclose[0] - self.dataopen[0]
 
-        if distance_buy*-1 >= self.p.quantidade_pontos:
+        if distance_buy * -1 >= self.p.quantidade_pontos:
             # Adiciona stop loss e take profit
             self.price = self.dataclose[0]
             self.stop_loss = self.price - self.p.quantidade_pontos
@@ -33,13 +34,31 @@ class MyStrategy(bt.Strategy):
         # Verifica se a distância de abertura para fechamento é igual a quantidade_pontos para operações de venda
         distance_sell = self.dataopen[0] - self.dataclose[0]
 
-        if distance_sell*-1 >= self.p.quantidade_pontos:
+        if distance_sell * -1 >= self.p.quantidade_pontos:
             # Adiciona stop loss e take profit
             self.price = self.dataclose[0]
             self.stop_loss = self.price + self.p.quantidade_pontos
             self.take_profit = self.price - self.p.quantidade_pontos
             self.sell(exectype=bt.Order.Stop, price=self.stop_loss)
             self.sell(exectype=bt.Order.Limit, price=self.take_profit)
+
+    def notify_order(self, order):
+        if order.status in [order.Submitted, order.Accepted]:
+            return
+
+        if order.status in [order.Completed]:
+            if order.isbuy():
+                self.price = order.executed.price
+                self.stop_loss = self.price - self.p.quantidade_pontos
+                self.take_profit = self.price + self.p.quantidade_pontos
+                print(
+                    f"Buy Order executed - Price: {self.price:.2f}, Stop Loss: {self.stop_loss:.2f}, Take Profit: {self.take_profit:.2f}")
+            elif order.issell():
+                self.price = order.executed.price
+                self.stop_loss = self.price + self.p.quantidade_pontos
+                self.take_profit = self.price - self.p.quantidade_pontos
+                print(
+                    f"Sell Order executed - Price: {self.price:.2f}, Stop Loss: {self.stop_loss:.2f}, Take Profit: {self.take_profit:.2f}")
 
 if __name__ == "__main__":
     cerebro = bt.Cerebro()
