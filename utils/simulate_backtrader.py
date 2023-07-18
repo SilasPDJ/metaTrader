@@ -46,7 +46,14 @@ class MyStrategy(bt.Strategy):
         if order.status in [order.Submitted, order.Accepted]:
             return
 
+        if order.status == order.Completed:
+            pnl = order.executed.pnl
+            if pnl >= 0:
+                print(f"\033[1;33mTrade Result: WIN - PnL: {pnl:.2f}\033[m")
+            else:
+                print(f"\033[1;31mTrade Result: LOSS - PnL: {pnl:.2f}\033[m")
         if order.status in [order.Completed]:
+
             if order.isbuy():
                 self.price = order.executed.price
                 self.stop_loss = self.price - self.p.quantidade_pontos
