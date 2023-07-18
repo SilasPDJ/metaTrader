@@ -10,10 +10,6 @@ class TradingDolar:
     def __init__(self, symbol: str):
         self.symbol = symbol
         self.yesterday = datetime.today() + dt.timedelta(-4)
-        if not self.has_position():
-            pass
-
-
 
     @property
     def symbol(self):
@@ -23,12 +19,12 @@ class TradingDolar:
     def symbol(self, symbol: str):
         self._symbol = symbol
 
-    def has_position(self) -> bool:
+    def _has_position(self) -> bool:
         return self.symbol in [pos.symbol for pos in mt5.positions_get()]
 
-    def dolar_version_compra_e_vende(self, timeframe, diferenca_abertura_fechamento: float, count_df: int = 10) -> bool:
-        positions_symbols = [pos.symbol for pos in mt5.positions_get()]
-        # assert diferenca_abertura_fechamento > 0.5
+    def main(self, timeframe, diferenca_abertura_fechamento: float, count_df: int = 10) -> bool:
+        if self._has_position():
+            return False
         symbol_info = mt5.symbol_info(self.symbol)
         symbol_info_tick = mt5.symbol_info_tick(self.symbol)
         rates = mt5.copy_rates_from(self.symbol, timeframe, time.time(), count_df)
@@ -38,23 +34,17 @@ class TradingDolar:
         df['time'] = df['time'].apply(datetime.fromtimestamp)
         # carteira_closes.set_index(timestamps, inplace=True)
 
-        # Se a ordem já estiver aberta, não executa
-        if self.symbol in positions_symbols:
-            print('Orderm já aberta')
-            return False
-
-        tempo, abertura, high, low, close, tick_volume, spread,real_volume = df.iloc[-1]
+        tempo, abertura, high, low, close, tick_volume, spread, real_volume = df.iloc[-1]
         print(f'abertura: {abertura}\n'
               f'Fechamento: {close}\n'
-              f'{abertura-close}')
-
+              f'{abertura - close}')
 
         if close > abertura:
             # É compra
             if close - abertura >= diferenca_abertura_fechamento:
-
                 price = self._get_price(high, low)
-                self.main_order_sender(_order_type=0, _lot=1, price=price, sl=diferenca_abertura_fechamento, tp=diferenca_abertura_fechamento)
+                self._main_order_sender(_order_type=0, _lot=1, price=price, sl=price - diferenca_abertura_fechamento,
+                                        tp=price + diferenca_abertura_fechamento)
                 return True
 
             return False
@@ -62,7 +52,8 @@ class TradingDolar:
             # É venda
             if abertura - close >= diferenca_abertura_fechamento:
                 price = self._get_price(high, low)
-                self.main_order_sender(_order_type=1, _lot=1, price=price, sl=diferenca_abertura_fechamento, tp=diferenca_abertura_fechamento)
+                self._main_order_sender(_order_type=1, _lot=1, price=price, sl=price + diferenca_abertura_fechamento,
+                                        tp=price - diferenca_abertura_fechamento)
                 return True
             return False
 
@@ -73,7 +64,8 @@ class TradingDolar:
         else:
             return valor
 
-    def main_order_sender(self, _order_type: int, _lot: int, price:float,sl: float, tp: float, deviation=20) -> mt5.OrderSendResult:
+    def _main_order_sender(self, _order_type: int, _lot: int, price: float, sl: float, tp: float,
+                           deviation=20) -> mt5.OrderSendResult:
         """
         :param _order_type:
         :param _lot: amount ot lots
@@ -97,6 +89,7 @@ class TradingDolar:
             8: "mt5.ORDER_TYPE_CLOSE_BY"
         }
         assert 0 <= _order_type <= 8, "Invalid `_order_type: int` value"
+        assert 0 <= _order_type <= 2, "`_order_type` is not possible in this method yet"
 
         # prepare the sell/buy request structure
         symbol_info = mt5.symbol_info(self.symbol)
@@ -118,37 +111,14 @@ class TradingDolar:
         trade_tick_size = mt5.symbol_info(self.symbol).trade_tick_size
         # mt5.symbol_info_tick._as_dict().keys() = time, bid, ask, last, volume, time_msc, flags, volume_real
 
-        if trade_tick_size == 0.01 or trade_tick_size == 0.5:
-            # Ordem é do tipo buy
-            if _order_type % 2 == 0:
-                stop_loss_formula = price - sl * trade_tick_size
-                take_profit_formula = price + tp * trade_tick_size
-            else:
-                # ordem do tipo sell
-                stop_loss_formula = price + sl * trade_tick_size
-                take_profit_formula = price - tp * trade_tick_size
-
-        elif trade_tick_size == 5:
-            # Ordem é do tipo buy
-            if _order_type % 2 == 0:
-                take_profit_formula = price + tp
-                stop_loss_formula = price - sl
-            else:
-                # ordem do tipo sell
-                stop_loss_formula = price + sl
-                take_profit_formula = price - tp
-        else:
-            print(f'trade tick_size = {trade_tick_size}')
-            raise ValueError('Ativo não identificado ainda')
-
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
             "symbol": self.symbol,
             "volume": lot,
             "type": _order_type,
             "price": price,
-            "sl": stop_loss_formula,
-            "tp": take_profit_formula,
+            "sl": sl,
+            "tp": tp,
             "deviation": deviation,
             "magic": 234000,
             "comment": "python script open",
@@ -161,16 +131,13 @@ class TradingDolar:
         result = mt5.order_send(request)
 
         # check the execution result
-        # if self._has_order_failed(result):
+        if self._has_order_failed(result):
+            print('Ordem falhou!!')
             # mt5.shutdown()
             # quit()
             # pass
 
-        print(f'symbol: {self.symbol}')
-        print(f'order type: {order_type_str}\n'
-              f'take profit: {take_profit_formula}, ({tp} ticks)\n'
-              f'stop loss: {stop_loss_formula}, ({sl} ticks)\n'
-              f'')
+        print(df_result, '\n')
 
         return result
 
@@ -221,5 +188,26 @@ class PreviousDay(TradingUtils):
         df.set_index('time', inplace=True)
         return df
 
+
 if __name__ == '__main__':
-    pass
+
+    # display data on the MetaTrader 5 package
+    print("MetaTrader5 package author: ", mt5.__author__)
+    print("MetaTrader5 package version: ", mt5.__version__)
+
+    # establish connection to the MetaTrader 5 terminal
+
+    # Entra no Mercado Forex
+    if not mt5.initialize():
+        # if not mt5.initialize(login=71780339,server='MetaQuotes-Demo', password='udge2dtl'):
+        print("initialize() failed, error code =", mt5.last_error())
+        quit()
+
+    # comprinha_de_petro =  main_order_sender(symbol='PETR4', _order_type=0, _lot=1, sl=10, tp=10)
+    # indice =  main_order_sender(symbol='WINQ23', _order_type=0, _lot=1, sl=100, tp=100)
+
+    trading_obj = TradingDolar('WDOQ23')
+    # trading_obj = TradingUtils('EURUSD')
+
+    while True:
+        trading_obj.main(mt5.TIMEFRAME_M15, 2)
