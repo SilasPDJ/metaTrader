@@ -7,12 +7,15 @@ from typing import Union
 
 
 class TradingDolar:
-    def __init__(self, symbol: str, max_volume: int, may_print=False):
+    def __init__(self, symbol: str, max_volume: int, max_trades_per_execution: int, may_print=False):
         self.symbol = symbol
         self.yesterday = datetime.today() + dt.timedelta(-4)
         self.last_position_candle = None
         self.max_volume = max_volume
         self.may_print = may_print
+
+        self.max_trades_per_execution = max_trades_per_execution
+        self.daily_trades_count = 0
 
     @property
     def symbol(self):
@@ -32,6 +35,11 @@ class TradingDolar:
         :param count_df:
         :return:
         """
+        # nem executa se já tiver realizado todos os trades das execuções
+        if self.daily_trades_count == self.max_trades_per_execution:
+            return False
+        # TODO armazenar num json todos os trades realizados e os resultados
+
         symbol_info = mt5.symbol_info(self.symbol)
         symbol_info_tick = mt5.symbol_info_tick(self.symbol)
         rates = mt5.copy_rates_from(self.symbol, timeframe, time.time(), count_df)
@@ -57,33 +65,32 @@ class TradingDolar:
                                              tp=high + target_in_points, action=mt5.TRADE_ACTION_DEAL)
             if result:
                 self.last_position_candle = current_candle_time
-                self._modify_stop_loss(_low)
-                print('testa aí')
+                self._modify_stop_loss_and_top_gain(result.price+target_in_points, _low)
         elif abertura < _abertura and close < _close:
             # é venda
             result = self._main_order_sender(_order_type=1, _lot=1, price=high, sl=high + target_in_points,
                                              tp=high - target_in_points, action=mt5.TRADE_ACTION_DEAL)
             if result:
                 self.last_position_candle = current_candle_time
-                self._modify_stop_loss(_high)
-                print('testa aí')
+                self._modify_stop_loss_and_top_gain(result.price-target_in_points, _high)
 
             # changing stop loss
 
-    def _modify_stop_loss(self, new_sl: float) -> bool:
+    def _modify_stop_loss_and_top_gain(self, new_tp: float, new_sl: float) -> bool:
         """
         Modify the stop-loss of the given order using the mt5.OrderSendResult object.
 
-        :param order_result: The mt5.OrderSendResult object containing the order details.
+        :param new_tp: The new take-rpfoit value to set
         :param new_sl: The new stop-loss value to set.
         :return: True if the modification was successful, False otherwise.
         """
-        pos = mt5.positions_get(symbol=self.symbol)[0]
+        pos = mt5.positions_get(symbol=self.symbol)[-1]
 
         request = {
             "action": mt5.TRADE_ACTION_SLTP,
             "position": pos.ticket,
             "symbol": pos.symbol,
+            "tp": new_tp,
             "sl": new_sl,
         }
         result = mt5.order_send(request)
@@ -131,8 +138,17 @@ class TradingDolar:
 
         position_info = mt5.positions_get(symbol=self.symbol)
         if position_info:
+            try:
+                assert len(position_info) == 1, 'Len position info é superior a 1'
+            except AssertionError as e:
+                print(e)
+            position_info = position_info[-1]
+            if position_info.type != _order_type:
+                print('pass signal to ', 'buy' if _order_type % 2 == 0 else 'sell')
+                return
+
             # the newest
-            if self.max_volume >= position_info[-1].volume:
+            if position_info.volume >= self.max_volume:
                 return
 
         # if the symbol is unavailable in MarketWatch, add it
@@ -173,6 +189,8 @@ class TradingDolar:
             # mt5.shutdown()
             # quit()
             # pass
+        else:
+            self.daily_trades_count += 1
 
         print(df_result, '\n')
 
@@ -220,5 +238,5 @@ if __name__ == '__main__':
     while True:
         # trading_15_minutes_opportunities.main(mt5.TIMEFRAME_M5, 6)
         # trading_5_minutes_opportunities.main(mt5.TIMEFRAME_M5, 10)
-        trading_5_minutes_opportunities.main(mt5.TIMEFRAME_M1, 10)
+        trading_5_minutes_opportunities.main(mt5.TIMEFRAME_M1, 4)
         time.sleep(1)
