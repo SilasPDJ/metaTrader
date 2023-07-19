@@ -7,10 +7,11 @@ from typing import Union
 
 
 class TradingDolar:
-    def __init__(self, symbol: str, may_print=False):
+    def __init__(self, symbol: str, max_volume: int, may_print=False):
         self.symbol = symbol
         self.yesterday = datetime.today() + dt.timedelta(-4)
         self.last_position_candle = None
+        self.max_volume = max_volume
         self.may_print = may_print
 
     @property
@@ -24,7 +25,13 @@ class TradingDolar:
     def _has_position__old(self) -> bool:
         return self.symbol in [pos.symbol for pos in mt5.positions_get()]
 
-    def main(self, timeframe, diferenca_abertura_fechamento: float, count_df: int = 10) -> bool:
+    def main(self, timeframe, target_in_points: float, count_df: int = 10) -> bool:
+        """
+        :param timeframe:
+        :param target_in_points:
+        :param count_df:
+        :return:
+        """
         symbol_info = mt5.symbol_info(self.symbol)
         symbol_info_tick = mt5.symbol_info_tick(self.symbol)
         rates = mt5.copy_rates_from(self.symbol, timeframe, time.time(), count_df)
@@ -35,48 +42,60 @@ class TradingDolar:
         # carteira_closes.set_index(timestamps, inplace=True)
 
         tempo, abertura, high, low, close, tick_volume, spread, real_volume = df.iloc[-1]
+
+        _tempo, _abertura, _high, _low, _close, _tick_volume, _spread, _real_volume = df.iloc[-2]
+
         current_candle_time = tempo
-        # Verificar se já estamos posicionados no mesmo candle
+
+        # Não permite comprar do mesmo candle mais de 1x
         if self.last_position_candle and current_candle_time == self.last_position_candle:
             return False
 
-        # printando para mostrar a diferença
-        if self.may_print:
-            print(f'abertura: {abertura}. '
-                  f'Fechamento: {close}\n'
-                  f'F - A := {abertura - close}. A - F := {close - abertura}')
-
-        if close > abertura:
-            # É compra
-            if close - abertura >= diferenca_abertura_fechamento:
-                price = self._get_price(high, low)
-                self._main_order_sender(_order_type=0, _lot=1, price=price, sl=price - diferenca_abertura_fechamento,
-                                        tp=price + diferenca_abertura_fechamento)
+        if abertura > _abertura and close > _close:
+            # é compra
+            result = self._main_order_sender(_order_type=0, _lot=1, price=high, sl=high - target_in_points,
+                                             tp=high + target_in_points, action=mt5.TRADE_ACTION_DEAL)
+            if result:
                 self.last_position_candle = current_candle_time
-
-                return True
-
-            return False
-        elif close < abertura:
-            # É venda
-            if abertura - close >= diferenca_abertura_fechamento:
-                price = self._get_price(high, low)
-                self._main_order_sender(_order_type=1, _lot=1, price=price, sl=price + diferenca_abertura_fechamento,
-                                        tp=price - diferenca_abertura_fechamento)
+                self._modify_stop_loss(_low)
+                print('testa aí')
+        elif abertura < _abertura and close < _close:
+            # é venda
+            result = self._main_order_sender(_order_type=1, _lot=1, price=high, sl=high + target_in_points,
+                                             tp=high - target_in_points, action=mt5.TRADE_ACTION_DEAL)
+            if result:
                 self.last_position_candle = current_candle_time
+                self._modify_stop_loss(_high)
+                print('testa aí')
 
-                return True
+            # changing stop loss
 
-            return False
+    def _modify_stop_loss(self, new_sl: float) -> bool:
+        """
+        Modify the stop-loss of the given order using the mt5.OrderSendResult object.
 
-    def _get_price(self, high: float, low: float) -> float:
-        valor = (high + low) / 2
-        if valor % 1 != 0.5:
-            return float(round(valor))
+        :param order_result: The mt5.OrderSendResult object containing the order details.
+        :param new_sl: The new stop-loss value to set.
+        :return: True if the modification was successful, False otherwise.
+        """
+        pos = mt5.positions_get(symbol=self.symbol)[0]
+
+        request = {
+            "action": mt5.TRADE_ACTION_SLTP,
+            "position": pos.ticket,
+            "symbol": pos.symbol,
+            "sl": new_sl,
+        }
+        result = mt5.order_send(request)
+        if result.retcode == mt5.TRADE_RETCODE_DONE:
+            print("Stop-loss modified successfully.")
+            return True
         else:
-            return valor
+            print("Failed to modify stop-loss.")
+            return False
 
     def _main_order_sender(self, _order_type: int, _lot: int, price: float, sl: float, tp: float,
+                           action=mt5.TRADE_ACTION_PENDING,
                            deviation=20) -> mt5.OrderSendResult:
         """
         :param _order_type:
@@ -84,7 +103,7 @@ class TradingDolar:
         :param price:
         :param sl: stop loss in cents or points
         :param tp: take profit in cents or points
-
+        :param action:
         :param deviation: Default: 20
         :return:
         """
@@ -110,6 +129,12 @@ class TradingDolar:
             mt5.shutdown()
             quit()
 
+        position_info = mt5.positions_get(symbol=self.symbol)
+        if position_info:
+            # the newest
+            if self.max_volume >= position_info[-1].volume:
+                return
+
         # if the symbol is unavailable in MarketWatch, add it
         if not symbol_info.visible:
             print(self.symbol, "is not visible, trying to switch on")
@@ -124,7 +149,7 @@ class TradingDolar:
         # mt5.symbol_info_tick._as_dict().keys() = time, bid, ask, last, volume, time_msc, flags, volume_real
 
         request = {
-            "action": mt5.TRADE_ACTION_PENDING,
+            "action": action,
             "symbol": self.symbol,
             "volume": lot,
             "type": _order_type,
@@ -188,11 +213,12 @@ if __name__ == '__main__':
     # comprinha_de_petro =  main_order_sender(symbol='PETR4', _order_type=0, _lot=1, sl=10, tp=10)
     # indice =  main_order_sender(symbol='WINQ23', _order_type=0, _lot=1, sl=100, tp=100)
 
-    trading_5_minutes_opportunities = TradingDolar('WDOQ23', may_print=True)
-    trading_15_minutes_opportunities = TradingDolar('WDOQ23')
+    trading_5_minutes_opportunities = TradingDolar('WDOQ23', 2, may_print=True)
+    trading_15_minutes_opportunities = TradingDolar('WDOQ23', 2)
     # trading_obj = TradingUtils('EURUSD')
 
     while True:
-        trading_15_minutes_opportunities.main(mt5.TIMEFRAME_M5, 6)
-        trading_5_minutes_opportunities.main(mt5.TIMEFRAME_M5, 4)
+        # trading_15_minutes_opportunities.main(mt5.TIMEFRAME_M5, 6)
+        # trading_5_minutes_opportunities.main(mt5.TIMEFRAME_M5, 10)
+        trading_5_minutes_opportunities.main(mt5.TIMEFRAME_M1, 10)
         time.sleep(1)
