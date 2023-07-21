@@ -242,20 +242,21 @@ if __name__ == '__main__':
     # establish connection to the MetaTrader 5 terminal
 
     # Entra no Mercado Forex
-    if not mt5.initialize():
-        # if not mt5.initialize(login=71780339,server='MetaQuotes-Demo', password='udge2dtl'):
+    # if not mt5.initialize():
+    if not mt5.initialize(login=71780339,server='MetaQuotes-Demo', password='udge2dtl'):
         print("initialize() failed, error code =", mt5.last_error())
         quit()
 
     # comprinha_de_petro =  main_order_sender(symbol='PETR4', _order_type=0, _lot=1, sl=10, tp=10)
     # indice =  main_order_sender(symbol='WINQ23', _order_type=0, _lot=1, sl=100, tp=100)
 
-    trading_5_minutes_opportunities = TradingDolar('WDOQ23', 2, 10, may_print=True)
-    trading_15_minutes_opportunities = TradingDolar('WDOQ23', 2, 10)
+    # trading_5_minutes_opportunities = TradingDolar('EURUSD', 2, 10, may_print=True)
+    trading_5_minutes_opportunities = TradingDolar('USDJPY', 2, 10, may_print=True)
+    # trading_15_minutes_opportunities = TradingDolar('USDJPY', 2, 10)
     # trading_obj = TradingUtils('EURUSD')
 
     while True:
         # trading_15_minutes_opportunities.main(mt5.TIMEFRAME_M5, 6)
-        trading_5_minutes_opportunities.main(mt5.TIMEFRAME_M5, 4)
+        trading_5_minutes_opportunities.main(mt5.TIMEFRAME_M5, 1)
         # trading_5_minutes_opportunities.main(mt5.TIMEFRAME_M1, 4)
         time.sleep(1)
