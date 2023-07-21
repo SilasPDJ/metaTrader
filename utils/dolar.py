@@ -15,7 +15,7 @@ class TradingDolar:
         self.may_print = may_print
 
         self.max_trades_per_execution = max_trades_per_execution
-        self.daily_trades_count = 0
+        self._daily_trades_count = 0
 
     @property
     def symbol(self):
@@ -24,6 +24,16 @@ class TradingDolar:
     @symbol.setter
     def symbol(self, symbol: str):
         self._symbol = symbol
+
+    @property
+    def daily_trades_count(self):
+        return self._daily_trades_count
+
+    @daily_trades_count.setter
+    def daily_trades_count(self, c):
+        if c != self._daily_trades_count:  # Verifica se o novo valor é diferente do valor atual
+            print('New trade, amount of trades:', c, f'. Max trades: {self.max_trades_per_execution}')
+        self._daily_trades_count = c
 
     def _has_position__old(self) -> bool:
         return self.symbol in [pos.symbol for pos in mt5.positions_get()]
@@ -39,6 +49,7 @@ class TradingDolar:
         if self.daily_trades_count == self.max_trades_per_execution:
             return False
         # TODO armazenar num json todos os trades realizados e os resultados
+        # TODO os 4 pontos
 
         symbol_info = mt5.symbol_info(self.symbol)
         symbol_info_tick = mt5.symbol_info_tick(self.symbol)
@@ -60,20 +71,25 @@ class TradingDolar:
             return False
 
         if abertura > _abertura and close > _close:
+
             # é compra
             result = self._main_order_sender(_order_type=0, _lot=1, price=high, sl=high - target_in_points,
                                              tp=high + target_in_points, action=mt5.TRADE_ACTION_DEAL)
             if result:
                 self.last_position_candle = current_candle_time
-                self._modify_stop_loss_and_top_gain(result.price+target_in_points, _low)
+                self._modify_stop_loss_and_top_gain(result.price + target_in_points, _low)
+            else:
+                print(f'close: {close} - Abertura: {abertura}. {close-abertura}')
         elif abertura < _abertura and close < _close:
-            # é venda
+            # é venda'
             result = self._main_order_sender(_order_type=1, _lot=1, price=high, sl=high + target_in_points,
                                              tp=high - target_in_points, action=mt5.TRADE_ACTION_DEAL)
+
             if result:
                 self.last_position_candle = current_candle_time
-                self._modify_stop_loss_and_top_gain(result.price-target_in_points, _high)
-
+                self._modify_stop_loss_and_top_gain(result.price - target_in_points, _high)
+            else:
+                print(f'close: {close} - Abertura: {abertura}. {close-abertura}')
             # changing stop loss
 
     def _modify_stop_loss_and_top_gain(self, new_tp: float, new_sl: float) -> bool:
@@ -84,7 +100,11 @@ class TradingDolar:
         :param new_sl: The new stop-loss value to set.
         :return: True if the modification was successful, False otherwise.
         """
-        pos = mt5.positions_get(symbol=self.symbol)[-1]
+        pos = mt5.positions_get(symbol=self.symbol)
+        if pos:
+            pos = pos[-1]
+        else:
+            return False
 
         request = {
             "action": mt5.TRADE_ACTION_SLTP,
@@ -231,12 +251,12 @@ if __name__ == '__main__':
     # comprinha_de_petro =  main_order_sender(symbol='PETR4', _order_type=0, _lot=1, sl=10, tp=10)
     # indice =  main_order_sender(symbol='WINQ23', _order_type=0, _lot=1, sl=100, tp=100)
 
-    trading_5_minutes_opportunities = TradingDolar('WDOQ23', 2, may_print=True)
-    trading_15_minutes_opportunities = TradingDolar('WDOQ23', 2)
+    trading_5_minutes_opportunities = TradingDolar('WDOQ23', 2, 10, may_print=True)
+    trading_15_minutes_opportunities = TradingDolar('WDOQ23', 2, 10)
     # trading_obj = TradingUtils('EURUSD')
 
     while True:
         # trading_15_minutes_opportunities.main(mt5.TIMEFRAME_M5, 6)
-        # trading_5_minutes_opportunities.main(mt5.TIMEFRAME_M5, 10)
-        trading_5_minutes_opportunities.main(mt5.TIMEFRAME_M1, 4)
+        trading_5_minutes_opportunities.main(mt5.TIMEFRAME_M5, 4)
+        # trading_5_minutes_opportunities.main(mt5.TIMEFRAME_M1, 4)
         time.sleep(1)
