@@ -38,10 +38,11 @@ class TradingDolar:
     def _has_position__old(self) -> bool:
         return self.symbol in [pos.symbol for pos in mt5.positions_get()]
 
-    def main(self, timeframe, target_in_points: float, count_df: int = 10) -> bool:
+    def main(self, timeframe, target_in_points: float, required_points_per_candle: float=4, count_df: int = 10) -> bool:
         """
         :param timeframe:
         :param target_in_points:
+        :param required_points_per_candle:
         :param count_df:
         :return:
         """
@@ -72,8 +73,14 @@ class TradingDolar:
         if self.last_position_candle and current_candle_time == self.last_position_candle:
             return False
 
-        if abertura > _abertura and close > _close:
+        # Se for um candle não expressivo
+        if high - low < required_points_per_candle:
+            return False
+        if abertura - close <= required_points_per_candle:
+            return False
 
+        # Verifica se são compras ou venda
+        if abertura < close:
             # é compra
             result = self._main_order_sender(_order_type=0, _lot=1, price=high, sl=high - target_in_points,
                                              tp=high + target_in_points, action=mt5.TRADE_ACTION_DEAL)
@@ -82,7 +89,7 @@ class TradingDolar:
                 self._modify_stop_loss_and_top_gain(result.price + target_in_points, _low)
             else:
                 print(f'close: {close} - Abertura: {abertura}. {close-abertura}')
-        elif abertura < _abertura and close < _close:
+        elif close < abertura:
             # é venda'
             result = self._main_order_sender(_order_type=1, _lot=1, price=high, sl=high + target_in_points,
                                              tp=high - target_in_points, action=mt5.TRADE_ACTION_DEAL)
