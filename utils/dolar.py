@@ -65,6 +65,9 @@ class TradingDolar:
 
         current_candle_time = tempo
 
+        if not self._get_position_info():
+            self.last_position_candle = None
+
         # Não permite comprar do mesmo candle mais de 1x
         if self.last_position_candle and current_candle_time == self.last_position_candle:
             return False
@@ -88,7 +91,7 @@ class TradingDolar:
                 self.last_position_candle = current_candle_time
                 self._modify_stop_loss_and_top_gain(result.price - target_in_points, _high)
             else:
-                print(f'close: {close} - Abertura: {abertura}. {close-abertura}')
+                print(f'close: {close} - Abertura: {abertura}. {close - abertura}')
             # changing stop loss
 
     def _modify_stop_loss_and_top_gain(self, new_tp: float, new_sl: float) -> bool:
@@ -155,13 +158,8 @@ class TradingDolar:
             mt5.shutdown()
             quit()
 
-        position_info = mt5.positions_get(symbol=self.symbol)
+        position_info = self._get_position_info()
         if position_info:
-            try:
-                assert len(position_info) == 1, 'Len position info é superior a 1'
-            except AssertionError as e:
-                print(e)
-            position_info = position_info[-1]
             if position_info.type != _order_type:
                 print('pass signal to ', 'buy' if _order_type % 2 == 0 else 'sell')
                 return
@@ -231,6 +229,18 @@ class TradingDolar:
             print("shutdown() and quit")
             return True
         return False
+
+    def _get_position_info(self) -> Union[mt5.TradePosition, None]:
+        position_info = mt5.positions_get(symbol=self.symbol)
+        if position_info:
+            try:
+                assert len(position_info) == 1, 'Len position info é superior a 1'
+                position_info = position_info[-1]
+                input(type(position_info))
+                return position_info
+            except AssertionError as e:
+                print(e)
+                return
 
 
 if __name__ == '__main__':
