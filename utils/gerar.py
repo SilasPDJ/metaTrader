@@ -37,7 +37,7 @@ df['time'] = pd.to_datetime(df['time'], unit='s')
 df.set_index('time', inplace=True)
 
 # Save the DataFrame to a CSV file
-df.to_excel('historical_data_v2.xlsx')
+df.to_csv('historical_data_v2.csv')
 
 # Deinitialize MetaTrader 5 connection
 mt5.shutdown()
