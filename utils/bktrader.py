@@ -1,5 +1,7 @@
 import backtrader as bt
 import datetime
+
+import backtrader.sizers
 import pandas as pd
 
 import datetime  # For datetime objects
@@ -14,9 +16,9 @@ import backtrader as bt
 class TestStrategy(bt.Strategy):
 
     def log(self, txt, dt=None):
-        ''' Logging function fot this strategy'''
-        dt = dt or self.datas[0].datetime.date(0)
-        print('%s, %s' % (dt.isoformat(), txt))
+        """ Logging function fot this strategy"""
+        dt = dt or self.datas[0].datetime.datetime(0)
+        print(dt.strftime('%Y-%m-%d - %H:%m |'), '%s' % txt)
 
     def __init__(self):
         # Keep a reference to the "close" line in the data[0] dataseries
@@ -67,10 +69,13 @@ class TestStrategy(bt.Strategy):
 
         self.log('OPERATION PROFIT, GROSS %.2f, NET %.2f' %
                  (trade.pnl, trade.pnlcomm))
+        print()
+        self.bar_executed = len(self)
+        self.order = None
 
     def next(self):
         # Simply log the closing price of the series from the reference
-        self.log('Close, %.2f' % self.dataclose[0])
+        # self.log('Close, %.2f' % self.dataclose[0])
 
         # Check if an order is pending ... if yes, we cannot send a 2nd one
         if self.order:
@@ -78,45 +83,45 @@ class TestStrategy(bt.Strategy):
 
         # Check if we are in the market
         if not self.position:
+
             # Not yet ... we MIGHT BUY if ...
             if self.dataclose[0] > self.dataclose[-1]:
-                # current close less than previous close
-                # previous close less than the previous close
+                    # current close less than previous close
 
-                # BUY, BUY, BUY!!! (with default parameters)
-                self.log('BUY CREATE, %.2f' % self.dataclose[0])
+                    if self.dataclose[-1] < self.dataclose[-2]:
+                        # previous close less than the previous close
 
-                price = self.dataclose[0]
-                stopprice = self.datahlow[-1]  # Stop and Tgt prices should be set from the executed price
-                limitprice = price + ((price - stopprice) / 2)  # not the submitted price
-
-                self.buy_bracket(price=price, stopprice=stopprice, limitprice=limitprice,
-                                      exectype=bt.Order.Market)
-                self.log(f'Buy at {price}, Stop sell at {stopprice}, Tgt sell at {limitprice}')
+                        # BUY, BUY, BUY!!! (with default parameters)
+                        # Keep track of the created order to avoid a 2nd order
+                        self.order = self.buy()
 
         else:
 
             # Already in the market ... we might sell
             if len(self) >= (self.bar_executed + 5):
-                pass
+                # SELL, SELL, SELL!!! (with all possible default parameters)
 
+                # Keep track of the created order to avoid a 2nd order
+                self.order = self.close()
 
 if __name__ == '__main__':
     cerebro = bt.Cerebro()
 
     df = pd.read_csv('historical_data_v2.csv')
-    # df.set_index('time', inplace=True)
     df['time'] = pd.to_datetime(df['time'], format='%Y-%m-%d %H:%M:%S')
-
     df.index = df['time']
-    data = bt.feeds.PandasData(dataname=df, name='WDO_5M')
+    data = bt.feeds.PandasData(dataname=df, name='df')
 
     cerebro.adddata(data)
     cerebro.broker.set_cash(10000)
-
     cerebro.addstrategy(TestStrategy)
-    print('Starting Portifolio Value: %.2f' % cerebro.broker.get_value())
+
+    print('Starting Portfolio Value: %.2f' % cerebro.broker.get_value())
 
     cerebro.run()
-    print('Final Portifolio Value: %.2f' % cerebro.broker.get_value())
-    print()
+
+    print('Final Portfolio Value: %.2f' % cerebro.broker.get_value())
+
+    cerebro.addsizer(bt.sizers.FixedSize, stake=1000)
+
+    cerebro.plot()
