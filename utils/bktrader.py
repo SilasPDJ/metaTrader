@@ -10,8 +10,6 @@ import sys  # To find out the script name (in argv[0])
 import backtrader as bt
 
 
-
-
 # Create a Stratey
 class TestStrategy(bt.Strategy):
 
@@ -23,6 +21,10 @@ class TestStrategy(bt.Strategy):
     def __init__(self):
         # Keep a reference to the "close" line in the data[0] dataseries
         self.dataclose = self.datas[0].close
+        self.dataopen = self.datas[0].open
+        self.datahigh = self.datas[0].high
+        self.datahlow = self.datas[0].low
+        self.datahvolume = self.datas[0].volume
 
         # To keep track of pending orders and buy price/commission
         self.order = None
@@ -76,30 +78,27 @@ class TestStrategy(bt.Strategy):
 
         # Check if we are in the market
         if not self.position:
-
             # Not yet ... we MIGHT BUY if ...
-            if self.dataclose[0] < self.dataclose[-1]:
-                    # current close less than previous close
+            if self.dataclose[0] > self.dataclose[-1]:
+                # current close less than previous close
+                # previous close less than the previous close
 
-                    if self.dataclose[-1] < self.dataclose[-2]:
-                        # previous close less than the previous close
+                # BUY, BUY, BUY!!! (with default parameters)
+                self.log('BUY CREATE, %.2f' % self.dataclose[0])
 
-                        # BUY, BUY, BUY!!! (with default parameters)
-                        self.log('BUY CREATE, %.2f' % self.dataclose[0])
+                price = self.dataclose[0]
+                stopprice = self.datahlow[-1]  # Stop and Tgt prices should be set from the executed price
+                limitprice = price + ((price - stopprice) / 2)  # not the submitted price
 
-                        # Keep track of the created order to avoid a 2nd order
-                        self.order = self.buy()
+                self.buy_bracket(price=price, stopprice=stopprice, limitprice=limitprice,
+                                      exectype=bt.Order.Market)
+                self.log(f'Buy at {price}, Stop sell at {stopprice}, Tgt sell at {limitprice}')
 
         else:
 
             # Already in the market ... we might sell
             if len(self) >= (self.bar_executed + 5):
-                # SELL, SELL, SELL!!! (with all possible default parameters)
-                self.log('SELL CREATE, %.2f' % self.dataclose[0])
-
-                # Keep track of the created order to avoid a 2nd order
-                self.order = self.sell()
-
+                pass
 
 
 if __name__ == '__main__':
@@ -120,3 +119,4 @@ if __name__ == '__main__':
 
     cerebro.run()
     print('Final Portifolio Value: %.2f' % cerebro.broker.get_value())
+    print()
